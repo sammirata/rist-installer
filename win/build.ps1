@@ -261,6 +261,20 @@ if ((-not $NoGit) -and (-not $NoBuild)) {
         git checkout $Branch --quiet
         Pop-Location
     }
+
+    # On Windows, strtok_r doesn't exist and must be replaced by strtok_s.
+    # Add it in meson.build if not present.
+    $MesonBuild = "$RepoDir\meson.build"
+    if ((Select-String -Path $MesonBuild -Pattern "strtok_r=strtok_s") -eq $null) {
+        $Done = $false
+        (Get-Content $MesonBuild) | ForEach-Object {
+            $_
+            if (-not $Done -and ($_ -like "if host_machine.system() == 'windows'")) {
+                "    add_global_arguments('-Dstrtok_r=strtok_s', language : 'c')"
+                $Done = $true
+            }
+        } | Set-Content $MesonBuild -Encoding Ascii
+    }
 }
 
 # Get librist version from repository.
@@ -325,7 +339,7 @@ if (-not $NoBuild) {
 }
 
 # Build the binary installer.
-Write-Output "Building installer ..."
+Write-Output "Building installer librist-${Version}.exe ..."
 & $NSIS /V2 `
     /DProductName=librist `
     /DVersion=$Version `
