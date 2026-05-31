@@ -261,20 +261,6 @@ if ((-not $NoGit) -and (-not $NoBuild)) {
         git checkout $Branch --quiet
         Pop-Location
     }
-
-    # On Windows, strtok_r doesn't exist and must be replaced by strtok_s.
-    # Add it in meson.build if not present.
-    $MesonBuild = "$RepoDir\meson.build"
-    if ((Select-String -Path $MesonBuild -Pattern "strtok_r=strtok_s") -eq $null) {
-        $Done = $false
-        (Get-Content $MesonBuild) | ForEach-Object {
-            $_
-            if (-not $Done -and ($_ -like "if host_machine.system() == 'windows'")) {
-                "    add_global_arguments('-Dstrtok_r=strtok_s', language : 'c')"
-                $Done = $true
-            }
-        } | Set-Content $MesonBuild -Encoding Ascii
-    }
 }
 
 # Get librist version from repository.
@@ -290,8 +276,40 @@ Pop-Location
 # Split version string in pieces and make sure it has at least four elements (Windows version info format).
 $VField = ($Version -split "[-\. ]") + @("0", "0", "0", "0") | Select-String -Pattern '^\d*$'
 $VersionInfo = "$($VField[0]).$($VField[1]).$($VField[2]).$($VField[3])"
+$VersionInt = 100000 * [int]$VField[0].ToString() + 100 * [int]$VField[1].ToString() + [int]$VField[2].ToString()
 
-Write-Output "RIST version is $Version, Windows version info is $VersionInfo"
+Write-Output "RIST version is $Version, Windows version info is $VersionInfo, integer version is $VersionInt"
+
+# On Windows, strtok_r doesn't exist and must be replaced by strtok_s.
+# The problem has been fixed in librist v0.2.17. Patch meson.build on lower versions.
+if ($VersionInt -lt 217) {
+    $MesonBuild = "$RepoDir\meson.build"
+    if ((Select-String -Path $MesonBuild -Pattern "strtok_r=strtok_s") -eq $null) {
+        $Done = $false
+        (Get-Content $MesonBuild) | ForEach-Object {
+            $_
+            if (-not $Done -and ($_ -like "if host_machine.system() == 'windows'")) {
+                "    add_global_arguments('-Dstrtok_r=strtok_s', language : 'c')"
+                $Done = $true
+            }
+        } | Set-Content $MesonBuild -Encoding Ascii
+    }
+}
+
+# On Windows, version v0.2.17, need to patch transport.h
+if ($VersionInt -eq 217) {
+    $TransportH = "$RepoDir\include\librist\transport.h"
+    if ((Select-String -Path $TransportH -Pattern "common/attributes.h") -eq $null) {
+        $Done = $false
+        (Get-Content $TransportH) | ForEach-Object {
+            $_
+            if (-not $Done -and ($_ -like '#include "common.h"')) {
+                '#include "common/attributes.h"'
+                $Done = $true
+            }
+        } | Set-Content $TransportH -Encoding Ascii
+    }
+}
 
 # A function to build librist for a given architecture (index in $ARCHDEFS).
 function Build-OnArch([string]$ArchIndex, [string]$Configuration)
@@ -325,8 +343,19 @@ function Build-OnArch([string]$ArchIndex, [string]$Configuration)
         }
     }
 
+    # The solution file format depends on the Meson version.
+    # Try new XML solution file format first.
+    $SolFile = "$ArchBuildDir\libRIST.slnx"
+    if (-not (Test-Path $SolFile)) {
+        # Try legacy solution file format.
+        $SolFile = "$ArchBuildDir\libRIST.sln"
+    }
+    if (-not (Test-Path $SolFile)) {
+        Exit-Script "Solution file $ArchBuildDir\libRIST.sln[x] not found, check Meson output"
+    }
+
     # Build using Visual Studio.
-    & $MSBuild $ArchBuildDir\libRIST.sln
+    & $MSBuild $SolFile /nologo /maxcpucount
 }
 
 # Build only if necessary.

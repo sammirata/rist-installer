@@ -129,6 +129,9 @@ Section "Install"
 
     ; Header files.
     CreateDirectory "$INSTDIR\include"
+    CreateDirectory "$INSTDIR\include\common"
+    SetOutPath "$INSTDIR\include\common"
+    File "${RepoDir}\include\common\*.h"
     CreateDirectory "$INSTDIR\include\librist"
     SetOutPath "$INSTDIR\include\librist"
     File "${RepoDir}\include\librist\*.h"
