@@ -8,4 +8,4 @@ BRANCH=master
 # merge request to be merged, other URL's can be added below. Only
 # the last (uncommented) URL is used.
 # URL=https://code.videolan.org/lelegard/librist.git
-# BRANCH=fix-strings-h
+# BRANCH=fix-issue-216-msvc-windows

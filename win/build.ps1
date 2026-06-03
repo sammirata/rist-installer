@@ -32,6 +32,12 @@
 
   Build the RIST library installer for Windows.
 
+ .PARAMETER Arch
+
+  Specify which CPU architecture should included in the installer. Must be
+  one of ARM64 x86 x64. In that case, the installed contains the libraries
+  for only one architecture. By default, it contains the three architectures.
+
  .PARAMETER BareVersion
 
   Use the "bare version" number from librist, without commit id if there is
@@ -62,6 +68,11 @@
   Do not clone or update the librist repository. Assume it is already up to
   date and use the current state.
 
+ .PARAMETER NoPatch
+
+  Do not apply any patch from this script which is supposed to fix specific
+  issues with librist on Windows.
+
  .PARAMETER NoPause
 
   Do not wait for the user to press <enter> at end of execution. By default,
@@ -75,12 +86,14 @@
 #>
 [CmdletBinding()]
 param(
+    [string]$Arch = "",
     [switch]$BareVersion = $false,
     [string]$Branch = "",
     [switch]$Clean = $false,
     [switch]$GitHubActions = $false,
     [switch]$NoBuild = $false,
     [switch]$NoGit = $false,
+    [switch]$NoPatch = $false,
     [switch]$NoPause = $false,
     [string]$Tag = ""
 )
@@ -145,6 +158,14 @@ $RootDir = (Split-Path -Parent $PSScriptRoot)
 $InstallerDir = "$RootDir\installers"
 $BuildDir = "$RootDir\build"
 $RepoDir = "$BuildDir\librist"
+
+# Extra options for NSIS.
+$ExtraOptionsNSIS = ""
+
+# Check selected architecture.
+if (($Arch -ne "") -and ($Arch -notin $ARCHDEFS.Keys)) {
+    Exit-Script "Unknown architecture $Arch, use one of $($ARCHDEFS.Keys)"
+}
 
 # Cleanup when required.
 if ($Clean) {
@@ -212,8 +233,8 @@ Write-Output "NSIS: $NSIS"
 function Cleanup-Build()
 {
     foreach ($Conf in @("Release", "Debug")) {
-        foreach ($Arch in $ARCHDEFS.keys) {
-            Remove-Item "$BuildDir\$Conf-$($ARCHDEFS.$Arch.platform)" -Force -Recurse -ErrorAction SilentlyContinue
+        foreach ($A in $ARCHDEFS.keys) {
+            Remove-Item "$BuildDir\$Conf-$($ARCHDEFS.$A.platform)" -Force -Recurse -ErrorAction SilentlyContinue
         }
     }
 }
@@ -282,7 +303,7 @@ Write-Output "RIST version is $Version, Windows version info is $VersionInfo, in
 
 # On Windows, strtok_r doesn't exist and must be replaced by strtok_s.
 # The problem has been fixed in librist v0.2.17. Patch meson.build on lower versions.
-if ($VersionInt -lt 217) {
+if ((-not $NoPatch) -and ($VersionInt -lt 217)) {
     $MesonBuild = "$RepoDir\meson.build"
     if ((Select-String -Path $MesonBuild -Pattern "strtok_r=strtok_s") -eq $null) {
         $Done = $false
@@ -296,8 +317,8 @@ if ($VersionInt -lt 217) {
     }
 }
 
-# On Windows, version v0.2.17, need to patch transport.h
-if ($VersionInt -eq 217) {
+# On Windows, version v0.2.17, need to patch transport.h and add include/common in installer.
+if ((-not $NoPatch) -and ($VersionInt -eq 217)) {
     $TransportH = "$RepoDir\include\librist\transport.h"
     if ((Select-String -Path $TransportH -Pattern "common/attributes.h") -eq $null) {
         $Done = $false
@@ -309,13 +330,14 @@ if ($VersionInt -eq 217) {
             }
         } | Set-Content $TransportH -Encoding Ascii
     }
+    $ExtraOptionsNSIS += " /DIncludeCommon=true"
 }
 
 # A function to build librist for a given architecture (index in $ARCHDEFS).
 function Build-OnArch([string]$ArchIndex, [string]$Configuration)
 {
-    $Arch = $ARCHDEFS.$ArchIndex
-    $Platform = $Arch.platform
+    $ArchDef = $ARCHDEFS.$ArchIndex
+    $Platform = $ArchDef.platform
     $BuildType = $Configuration.ToLower()
     $ArchBuildDir = "$BuildDir\$Configuration-$Platform"
 
@@ -330,12 +352,12 @@ function Build-OnArch([string]$ArchIndex, [string]$Configuration)
         Get-ChildItem $ArchBuildDir -Recurse -File -Include @("*.vcxproj", "*.sln") | ForEach-Object {
             (Get-Content $_.FullName) | ForEach-Object {
                 if ($_ -like "*vcvarsall.bat*") {
-                    $_ -replace " $($HOSTARCH.vcvars) "," $($HOSTARCH.vcvars)_$($Arch.vcvars) "
+                    $_ -replace " $($HOSTARCH.vcvars) "," $($HOSTARCH.vcvars)_$($ArchDef.vcvars) "
                 }
                 else {
-                    foreach ($i in 0..$($Arch.repl.Count - 1)) {
-                        $_ = $_.Replace($HOSTARCH.repl[$i],$Arch.repl[$i])
-                        $_ = $_.Replace($HOSTARCH.repl[$i].ToLower(),$Arch.repl[$i])
+                    foreach ($i in 0..$($ArchDef.repl.Count - 1)) {
+                        $_ = $_.Replace($HOSTARCH.repl[$i],$ArchDef.repl[$i])
+                        $_ = $_.Replace($HOSTARCH.repl[$i].ToLower(),$ArchDef.repl[$i])
                     }
                     $_
                 }
@@ -361,9 +383,11 @@ function Build-OnArch([string]$ArchIndex, [string]$Configuration)
 # Build only if necessary.
 if (-not $NoBuild) {
     Cleanup-Build
-    foreach ($arch in $ARCHDEFS.keys) {
-        Build-OnArch $arch Release
-        Build-OnArch $arch Debug
+    $ArchList = if ($Arch -ne "") {@($Arch)} else {$ARCHDEFS.keys}
+    foreach ($A in $ArchList) {
+        Build-OnArch $A Release
+        Build-OnArch $A Debug
+        $ExtraOptionsNSIS += " /DArch$($ARCHDEFS.$A.platform)"
     }
 }
 
@@ -377,6 +401,7 @@ Write-Output "Building installer librist-${Version}.exe ..."
     /DRepoDir=$RepoDir `
     /DBuildDir=$BuildDir `
     /DInstallerDir=$InstallerDir `
+    $ExtraOptionsNSIS `
     "$ScriptDir\librist.nsi"
 
 # Define INSTALLER_EXE in GitHub Actions.

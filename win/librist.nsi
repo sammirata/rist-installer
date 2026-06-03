@@ -129,18 +129,21 @@ Section "Install"
 
     ; Header files.
     CreateDirectory "$INSTDIR\include"
-    CreateDirectory "$INSTDIR\include\common"
-    SetOutPath "$INSTDIR\include\common"
-    File "${RepoDir}\include\common\*.h"
     CreateDirectory "$INSTDIR\include\librist"
     SetOutPath "$INSTDIR\include\librist"
     File "${RepoDir}\include\librist\*.h"
     File "${BuildDir}\Release-x64\include\librist\*.h"
     File "${BuildDir}\Release-x64\include\vcs_version.h"
+!ifdef IncludeCommon
+    CreateDirectory "$INSTDIR\include\common"
+    SetOutPath "$INSTDIR\include\common"
+    File "${RepoDir}\include\common\*.h"
+!endif
 
     ; Libraries.
     CreateDirectory "$INSTDIR\lib"
 
+!ifdef ArchARM64
     ; Arm64 libraries.
     CreateDirectory "$INSTDIR\lib\Release-ARM64"
     SetOutPath "$INSTDIR\lib\Release-ARM64"
@@ -153,7 +156,9 @@ Section "Install"
     File "${BuildDir}\Debug-ARM64\librist.dll"
     File "${BuildDir}\Debug-ARM64\librist.lib"
     File "${BuildDir}\Debug-ARM64\librist.a"
+!endif
 
+!ifdef Archx64
     ; Win64 libraries.
     CreateDirectory "$INSTDIR\lib\Release-x64"
     SetOutPath "$INSTDIR\lib\Release-x64"
@@ -166,7 +171,9 @@ Section "Install"
     File "${BuildDir}\Debug-x64\librist.dll"
     File "${BuildDir}\Debug-x64\librist.lib"
     File "${BuildDir}\Debug-x64\librist.a"
+!endif
 
+!ifdef ArchWin32
     ; Win32 libraries.
     CreateDirectory "$INSTDIR\lib\Release-Win32"
     SetOutPath "$INSTDIR\lib\Release-Win32"
@@ -179,28 +186,35 @@ Section "Install"
     File "${BuildDir}\Debug-Win32\librist.dll"
     File "${BuildDir}\Debug-Win32\librist.lib"
     File "${BuildDir}\Debug-Win32\librist.a"
+!endif
 
-    ; Tools.
+    ; Tools for the local architecture only.
     CreateDirectory "$INSTDIR\bin"
     SetOutPath "$INSTDIR\bin"
     ${If} ${IsNativeARM64}
+!ifdef ArchARM64
         File "${BuildDir}\Release-ARM64\librist.dll"
         File "${BuildDir}\Release-ARM64\tools\rist2rist.exe"
         File "${BuildDir}\Release-ARM64\tools\ristreceiver.exe"
         File "${BuildDir}\Release-ARM64\tools\ristsender.exe"
         File "${BuildDir}\Release-ARM64\tools\ristsrppasswd.exe"
+!endif
     ${ElseIf} ${RunningX64}
+!ifdef Archx64
         File "${BuildDir}\Release-x64\librist.dll"
         File "${BuildDir}\Release-x64\tools\rist2rist.exe"
         File "${BuildDir}\Release-x64\tools\ristreceiver.exe"
         File "${BuildDir}\Release-x64\tools\ristsender.exe"
         File "${BuildDir}\Release-x64\tools\ristsrppasswd.exe"
+!endif
     ${Else}
+!ifdef ArchWin32
         File "${BuildDir}\Release-Win32\librist.dll"
         File "${BuildDir}\Release-Win32\tools\rist2rist.exe"
         File "${BuildDir}\Release-Win32\tools\ristreceiver.exe"
         File "${BuildDir}\Release-Win32\tools\ristsender.exe"
         File "${BuildDir}\Release-Win32\tools\ristsrppasswd.exe"
+!endif
     ${EndIf}
 
     ; Add an environment variable to installation root.
