@@ -160,7 +160,7 @@ $BuildDir = "$RootDir\build"
 $RepoDir = "$BuildDir\librist"
 
 # Extra options for NSIS.
-$ExtraOptionsNSIS = ""
+$ExtraOptionsNSIS = @()
 
 # Check selected architecture.
 if (($Arch -ne "") -and ($Arch -notin $ARCHDEFS.Keys)) {
@@ -330,7 +330,7 @@ if ((-not $NoPatch) -and ($VersionInt -eq 217)) {
             }
         } | Set-Content $TransportH -Encoding Ascii
     }
-    $ExtraOptionsNSIS += " /DIncludeCommon=true"
+    $ExtraOptionsNSIS += "/DIncludeCommon=true"
 }
 
 # A function to build librist for a given architecture (index in $ARCHDEFS).
@@ -387,7 +387,7 @@ if (-not $NoBuild) {
     foreach ($A in $ArchList) {
         Build-OnArch $A Release
         Build-OnArch $A Debug
-        $ExtraOptionsNSIS += " /DArch$($ARCHDEFS.$A.platform)"
+        $ExtraOptionsNSIS += "/DArch$($ARCHDEFS.$A.platform)"
     }
 }
 
