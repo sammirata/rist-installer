@@ -10,6 +10,6 @@ BRANCH=master
 # URL=https://code.videolan.org/lelegard/librist.git
 # BRANCH=fix-issue-216-msvc-windows
 
-# Test build of the v0.2.18 release candidate (rist/librist MR !362, pre-tag):
+# v0.2.18 official release build (pinned to the v0.2.18 tag):
 URL=https://code.videolan.org/rist/librist.git
-BRANCH=release/v0.2.18
+BRANCH=v0.2.18
