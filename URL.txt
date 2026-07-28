@@ -14,4 +14,4 @@ BRANCH=master
 # MSVC test fix, which rc4 itself does not carry: without it the Visual
 # Studio solution fails to build and no installer is produced.
 URL=https://code.videolan.org/rist/librist.git
-BRANCH=fix/msvc-stdatomic-least64
+BRANCH=master
