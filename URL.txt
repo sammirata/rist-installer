@@ -9,3 +9,9 @@ BRANCH=master
 # the last (uncommented) URL is used.
 # URL=https://code.videolan.org/lelegard/librist.git
 # BRANCH=fix-issue-216-msvc-windows
+
+# v0.2.19-rc4 validation build. Points at the rc4 tree plus the one-commit
+# MSVC test fix, which rc4 itself does not carry: without it the Visual
+# Studio solution fails to build and no installer is produced.
+URL=https://code.videolan.org/rist/librist.git
+BRANCH=fix/msvc-test-pthread-include
