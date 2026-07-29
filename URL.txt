@@ -10,8 +10,8 @@ BRANCH=master
 # URL=https://code.videolan.org/lelegard/librist.git
 # BRANCH=fix-issue-216-msvc-windows
 
-# v0.2.19-rc4 validation build. Points at the rc4 tree plus the one-commit
-# MSVC test fix, which rc4 itself does not carry: without it the Visual
-# Studio solution fails to build and no installer is produced.
+# v0.2.19 release validation. BRANCH names the tag rather than a branch:
+# CI always clones fresh, and that path checks out whatever ref this names,
+# so git describe --tags yields the release version exactly.
 URL=https://code.videolan.org/rist/librist.git
-BRANCH=master
+BRANCH=v0.2.19
